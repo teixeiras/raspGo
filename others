@@ -1,0 +1,276 @@
+dependencies
+packages: libprocps0-dev
+
+
+gnuplot
+
+
+apt-get install git
+apt-get install ca-certificates
+wget http://goo.gl/1BOfJ -O /usr/bin/rpi-update && sudo chmod +x /usr/bin/rpi-update
+/usr/bin/rpi-update
+
+
+sudo -i
+apt-get update
+apt-get upgrade
+
+
+Sure - in your script, where you want to use the function, you can write a command like
+
+source function.sh
+which is equivalent to including the contents of function.sh in the file at the point where the command is run. Note that function.sh needs to be in one of the directories in $PATH; if it's not, you need to specify an absolute path.
+
+eis raspi-config
+raspi-config: /usr/bin/raspi-config /usr/bin/X11/raspi-config
+pi@raspberrypi:/etc/nginx$ sudo nano /usr/bin/raspi-config
+
+cat /proc/meminfo |grep Mem
+
+
+import (
+    "fmt"
+    "os/exec"
+        "os"
+)
+
+func exec_command(program string, args ...string) {
+    cmd := exec.Command(program, args...)
+    cmd.Stdin = os.Stdin;
+    cmd.Stdout = os.Stdout;
+    cmd.Stderr = os.Stderr;
+    err := cmd.Run() 
+    if err != nil {
+        fmt.Printf("%v\n", err)
+    }
+}
+
+func main() {
+        exec_command("vagrant", "ssh")
+}
+
+
+package main
+
+import (
+    "os/exec"   
+    "os"
+    "fmt"
+    "io"
+
+)
+
+var prog string = "/path/to/my/child/program"
+
+func main() {
+    for {
+        cmd := exec.Command(prog)
+        stdout, err := cmd.StdoutPipe()
+        if err != nil {
+            fmt.Println(err)
+        }
+        stderr, err := cmd.StderrPipe()
+        if err != nil {
+            fmt.Println(err)
+        }
+        err = cmd.Start()
+        if err != nil {
+            fmt.Println(err)
+        }
+        go io.Copy(os.Stdout, stdout) 
+        go io.Copy(os.Stderr, stderr) 
+        cmd.Wait()
+    }
+}
+
+
+// foo.hpp
+class cxxFoo {
+public:
+  int a;
+  cxxFoo(int _a):a(_a){};
+  ~cxxFoo(){};
+  void Bar();
+};
+
+// foo.cpp
+#include <iostream>
+#include "foo.hpp"
+void
+cxxFoo::Bar(void){
+  std::cout<<this->a<<std::endl;
+}
+which I want to use in go. I'll use the c interface
+
+// foo.h
+#ifdef __cplusplus
+extern "C" {
+#endif
+  typedef void* Foo;
+  Foo FooInit(void);
+  void FooFree(Foo);
+  void FooBar(Foo);
+#ifdef __cplusplus
+}
+#endif
+(I use a void* instead of a c struct so the compiler knows the size of Foo)
+
+The implementation is
+
+//cfoo.cpp
+#include "foo.hpp"
+#include "foo.h"
+Foo FooInit()
+{
+  cxxFoo * ret = new cxxFoo(1);
+  return (void*)ret;
+}
+void FooFree(Foo f)
+{
+  cxxFoo * foo = (cxxFoo*)f;
+  delete foo;
+}
+void FooBar(Foo f)
+{
+  cxxFoo * foo = (cxxFoo*)f;
+  foo->Bar();
+}
+with all that done, the go file is
+
+// foo.go
+package foo
+// #include "foo.h"
+import "C"
+import "unsafe"
+type GoFoo struct {
+     foo C.Foo;
+}
+func New()(GoFoo){
+     var ret GoFoo;
+     ret.foo = C.FooInit();
+     return ret;
+}
+func (f GoFoo)Free(){
+     C.FooFree(unsafe.Pointer(f.foo));
+}
+func (f GoFoo)Bar(){
+     C.FooBar(unsafe.Pointer(f.foo));
+}
+The makefile I used to compile this was
+
+// makefile
+TARG=foo
+CGOFILES=foo.go
+include $(GOROOT)/src/Make.$(GOARCH)
+include $(GOROOT)/src/Make.pkg
+foo.o:foo.cpp
+    g++ $(_CGO_CFLAGS_$(GOARCH)) -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $<
+cfoo.o:cfoo.cpp
+    g++ $(_CGO_CFLAGS_$(GOARCH)) -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $<
+CGO_LDFLAGS+=-lstdc++
+$(elem)_foo.so: foo.cgo4.o foo.o cfoo.o
+    gcc $(_CGO_CFLAGS_$(GOARCH)) $(_CGO_LDFLAGS_$(GOOS)) -o $@ $^ $(CGO_LDFLAGS)
+Try testing it with
+
+// foo_test.go
+package foo
+import "testing"
+func TestFoo(t *testing.T){
+    foo := New();
+    foo.Bar();
+    foo.Free();
+}
+You'll need to install the shared library with make install, then run make test. Expected output is
+
+gotest
+rm -f _test/foo.a _gotest_.6
+6g -o _gotest_.6 foo.cgo1.go foo.cgo2.go foo_test.go
+rm -f _test/foo.a
+gopack grc _test/foo.a _gotest_.6  foo.cgo3.6
+1
+PASS
+
+I had a similar issue and never found a lightweight implementation. Here is a slimmed down version of my solution that answers your specific question. I sample the /proc/stat file just like tylerl recommends. You'll notice that I wait 3 seconds between samples to match top's output, but I have also had good results with 1 or 2 seconds. I run similar code in a loop within a go routine, then I access the cpu usage when I need it from other go routines.
+
+You can also parse the output of top -n1 | grep -i cpu to get the cpu usage, but it only samples for half a second on my linux box and it was way off during heavy load. Regular top seemed to match very closely when I synchronized it and the following program:
+
+package main
+
+import (
+    "fmt"
+    "io/ioutil"
+    "strconv"
+    "strings"
+    "time"
+)
+
+func getCPUSample() (idle, total uint64) {
+    contents, err := ioutil.ReadFile("/proc/stat")
+    if err != nil {
+        return
+    }
+    lines := strings.Split(string(contents), "\n")
+    for _, line := range(lines) {
+        fields := strings.Fields(line)
+        if fields[0] == "cpu" {
+            numFields := len(fields)
+            for i := 1; i < numFields; i++ {
+                val, err := strconv.ParseUint(fields[i], 10, 64)
+                if err != nil {
+                    fmt.Println("Error: ", i, fields[i], err)
+                }
+                total += val // tally up all the numbers to get total ticks
+                if i == 4 {  // idle is the 5th field in the cpu line
+                    idle = val
+                }
+            }
+            return
+        }
+    }
+    return
+}
+
+func main() {
+    idle0, total0 := getCPUSample()
+    time.Sleep(3 * time.Second)
+    idle1, total1 := getCPUSample()
+
+    idleTicks := float64(idle1 - idle0)
+    totalTicks := float64(total1 - total0)
+    cpuUsage := 100 * (totalTicks - idleTicks) / totalTicks
+
+    fmt.Printf("CPU usage is %f%% [busy: %f, total: %f]\n", cpuUsage, totalTicks-idleTicks, totalTicks)
+}
+It seems like I'm 
+
+
+    var theCArray *TheCType := C.getTheArray()
+        length := C.getTheArrayLength()
+        var theGoSlice []TheCType
+        sliceHeader := (*reflect.SliceHeader)((unsafe.Pointer(&theGoSlice)))
+        sliceHeader.Cap = length
+        sliceHeader.Len = length
+        sliceHeader.Data = uintptr(unsafe.Pointer(&theCArray[0]))
+
+        type YourT1 struct {
+  }
+  func (y YourT1) MethodBar() {
+  }
+
+  type YourT2 struct {
+  }
+  func (y YourT2) MethodFoo(i int, oo string) {
+  }
+
+  func Invoke(any interface{}, name string, args... interface{}) {
+      inputs := make([]reflect.Value, len(args))
+      for i, _ := range args {
+          inputs[i] = reflect.ValueOf(rags[i])
+      }
+      reflect.ValueOf(any).MethodByName(name).Call(inputs)
+  }
+
+ func main() {
+      Invoke(YourT2{}, "MethodFoo", 10, "abc")
+      Invoke(YourT1{}, "MethodBar")
+ }
