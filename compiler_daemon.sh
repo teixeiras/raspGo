@@ -6,7 +6,7 @@ while true; do
   	echo "######## Killing previous proccess ###########"
 	killall raspGo
 	echo "######## Starting Compiling ###########"
-	go build && ./raspGo &
+	echo $'\e]9;Start Compiling\007' && go build && (./raspGo &) && echo $'\e]9;Server Started\007'
 	echo "######## Finished Compiling ###########"
    fi
 done

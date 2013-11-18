@@ -3,11 +3,11 @@
 		<title></title>
 		<script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
 		<script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui.min.js"></script>
-		<link rel="stylesheet" href="/css/main.css" media="screen" />
+		<link rel="stylesheet" href="/files/css/main.css" media="screen" />
 		<script>
 		    $(function() {
 			if (window["WebSocket"]) {
-			    conn = new WebSocket("ws://{{$}}/ws");
+			    conn = new WebSocket("ws://{{.Url}}/ws");
 			    conn.onclose = function(evt) {
 			        appendLog($("<div><b>Connection closed.</b></div>"))
 			    }
